@@ -58,7 +58,7 @@ def train(company_name:str,qrt:str,pdf_path:str,pdf_type:str="concall"):
 
 if __name__ == "__main__":
     train(
-        company_name="BATA",
-        qrt="Q1FY25",
-        pdf_path="bata_concall_2025.pdf"
+        company_name="BLUESTAR",
+        qrt="Q4FY25",
+        pdf_path="blue star.pdf"
     )

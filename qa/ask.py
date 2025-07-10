@@ -55,8 +55,8 @@ def ask(company_name:str,qrt:str,question:str,pdf_type:str="concall"):
 
 if __name__ == "__main__":
     res = ask(
-        company_name="BATA",
-        qrt="Q1FY25",
-        question="explain about capex planning!"
+        company_name="BLUESTAR",
+        qrt="Q4FY25",
+        question="give me idea about growth for this company"
     )
     print(res)
