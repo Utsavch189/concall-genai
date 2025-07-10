@@ -85,7 +85,7 @@ def split_pdf_into_chunks(pdf_path: str):
 
 def prompt():
     try:
-        chunks = split_pdf_into_chunks('blue star.pdf')
+        chunks = split_pdf_into_chunks('deepak.pdf')
         text = "\n\n".join(chunk.page_content for chunk in chunks)
         print("Input token usage --> ",gemini_client.count_tokens(contents=text).total_tokens)
         return f"""
@@ -178,5 +178,5 @@ response = client.messages.create(
 
 print("Output Token : ",gemini_client.count_tokens(contents="\n".join(response.model_dump().values())).total_tokens)
 
-with open('res5.json','w') as jsn:
+with open('res7.json','w') as jsn:
     jsn.write(json.dumps(response.model_dump(),indent=2))

@@ -156,6 +156,7 @@ response = client.messages.create(
     ],
     response_model=ExtractedReport
 )
+
 # raw_text = response.choices[0].message.content
 print(dir(response))
 print("Output Token : ",gemini_client.count_tokens(contents="\n".join(response.model_dump().values())).total_tokens)
