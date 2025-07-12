@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import re
 from calendar import month_abbr
 import markdown
+from datetime import datetime
 
 def convert_markdown_bold_to_html(text):
     return re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
@@ -39,6 +40,8 @@ load_dotenv()
 
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
+vectorstore = Chroma(persist_directory="./chroma_db", embedding_function=GoogleGenerativeAIEmbeddings(model="models/embedding-001"))
+
 def ask_question(stock, query):
 
     doc_types = get_doc_types(query)
@@ -50,10 +53,9 @@ def ask_question(stock, query):
             {"type": {"$in": doc_types}}
         ]
     }
-    vectorstore = Chroma(persist_directory="./chroma_db", embedding_function=GoogleGenerativeAIEmbeddings(model="models/embedding-001"))
 
     retriever = vectorstore.as_retriever(search_kwargs={
-        "k": 10,
+        "k": 20,
         "filter": filters
     })
     
@@ -61,7 +63,7 @@ def ask_question(stock, query):
 
     if not docs:
         retriever = vectorstore.as_retriever(search_kwargs={
-            "k": 10,
+            "k": 20,
             "filter": {
                 "stock": stock
             }
@@ -75,42 +77,63 @@ def ask_question(stock, query):
     context = "\n\n".join([d.page_content for d in docs])
 
     prompt = f"""
-        You are a smart financial analyst assistant. Based on the provided context extracted from official company documents 
-        (e.g., annual reports, earnings call transcripts, announcements), answer the user’s question with precision, structure, and financial clarity.
-
+        You are an intelligent and professional financial analyst assistant. 
+        Your role is to carefully read, synthesize, and summarize information from official company documents such as annual reports, 
+        earnings call transcripts, and regulatory announcements. 
+        Use the provided context to generate a precise, structured, and insight-rich response to the user's query.
+    
         <b>Instructions:</b>
-        - Use only the information from the provided context. Do not assume or fabricate.
-        - Present the answer in clear paragraphs or structured bullet points.
-        - Where applicable, include <b>key financial metrics, dates, and document references</b> (e.g., Concall Q4 FY25, Annual Report 2024).
-        - Use <b>bullet points</b> or sectioned formatting when summarizing multiple insights.
-        - When using subheadings, enclose the title in <b>&lt;b&gt;</b> tags and separate each section with a line break (\n).  
-          Example:  
-          <b>Revenue:</b> ... \n <b>Strategy:</b> ...
-        - Use <b>&lt;b&gt;</b> tags to highlight all important figures or values such as <b>₹200 crore</b>, <b>40%</b>, <b>15% YoY</b>, <b>₹64,479</b>, <b>AI</b>, etc.
-        - If data is spread across multiple years or documents, highlight patterns or trends concisely.
-        - Be professional, concise, and avoid subjective or speculative language.
-        - Do not use Markdown (e.g., **bold**). Use HTML tags like <b>...</b> for all emphasis.
-        - Bold important phrases like <b>₹200 crore</b>, <b>Gen AI</b>, etc. using HTML tags
-        - For line beaks use \n.
-
+        - Strictly use only the provided context. Never assume, extrapolate, or fabricate information.
+        - Provide a clear and well-structured answer using HTML formatting and professional financial language.
+        - Highlight <b>key figures</b>, <b>strategic initiatives</b>, <b>trends</b>, <b>dates</b>, and <b>relevant document references</b> (e.g., <i>Annual Report 2024</i>, <i>Concall Q4 FY25</i>).
+        - Use the following formatting rules:
+          • Use <b>...</b> for all important values or keywords (e.g., <b>₹5,200 crore</b>, <b>15% YoY</b>, <b>Gen AI</b>, <b>2.1% market share</b>)
+          • Use <br> for line breaks.
+          • Use section titles with <b>Section Title:</b> followed by line break (e.g., <b>Revenue:</b> ... <br>)
+    
+        <b>If the query relates to multiple time periods:</b>
+        - Preferably summarize the most recent <b>3 financial years</b> unless a specific time range is clearly requested.
+        - Organize chronologically with headings like:
+          <b>FY2023:</b> ... <br> <b>FY2024:</b> ... <br> <b>FY2025:</b> ...
+        - Show year-over-year trends or comparisons where applicable.
+    
+        <b>Clarification Rules:</b>
+        - If the query mentions "last year", interpret it as the <b>most recently completed financial year prior to current date</b>.
+        - Do not return older years unless required for trends or if specifically asked.
+    
+        <b>If the query involves:</b>
+        - Strategy, growth, or product development:
+          Use headings like <b>Growth Strategy:</b>, <b>Innovation & Technology:</b>, <b>New Revenue Streams:</b>.
+        - Market share or positioning:
+          Include values like <b>2.2%</b> market share with document reference.
+        - Operational metrics or financials:
+          Include <b>revenue</b>, <b>profit</b>, <b>EPS</b>, <b>margins</b>, <b>TCV</b>, <b>ROCE</b>, etc., tagged clearly with fiscal year and source.
+    
+        <b>If the answer spans multiple document types:</b>
+        - Attribute each insight inline with the document source:
+          E.g., "<b>₹64,479 crore</b> revenue (<i>Concall Q4 FY25</i>)" or "<b>2.1%</b> global market share (<i>Annual Report 2024</i>)"
+    
         <b>Conclusion:</b>  
-        - Always end with a summarizing conclusion in a single bullet or short paragraph enclosed in <b>Conclusion:</b> …  
-          Focus on what the insights imply or confirm regarding the user's question.
-
+        - End with a concluding paragraph in <b>Conclusion:</b> ...  
+        - Recap the core insight and clearly answer the user’s question.
+    
+        <b>Current System Time Reference:</b>  
+        The current year is {datetime.now().year}, month is {datetime.now().month}, and date is {datetime.now().day}. Use this to determine what constitutes "last year" or "current year" where applicable.
+    
         ---
-
+    
         <b>Company:</b> {stock}  
         <b>Question:</b> "{query}"
-
+    
         ---
-
+    
         <b>Context:</b>  
         {context}
-
+    
         ---
-
+    
         <b>Answer:</b>
-        """
+    """
 
     response = genai.GenerativeModel("models/gemini-2.5-flash").generate_content(prompt)
 
@@ -150,4 +173,4 @@ if __name__ == "__main__":
     #     query="What has the company been doing to grow? Has the company created any new revenue streams over the last 3 years? Has it launched any new products or innovations?"
     # )
     # print(res)
-    app.run()
+    app.run(debug=True)

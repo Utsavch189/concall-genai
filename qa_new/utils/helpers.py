@@ -31,7 +31,7 @@ def save_ingested(data):
 def load_new_pdfs(base_dir="./reports"):
     ingested = load_ingested()
     new_chunks = []
-    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=100)
 
     for stock in os.listdir(base_dir):
         stock_path = os.path.join(base_dir, stock)
