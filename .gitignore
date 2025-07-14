@@ -1,2 +1,3 @@
 /conenv
 .env
+**/chroma_db
