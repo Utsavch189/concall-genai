@@ -1,5 +1,8 @@
 import google.generativeai as genai
 
+def count_tokens(model, text):
+    return model.count_tokens(text).total_tokens
+
 def get_doc_types(query: str) -> list[str]:
     prompt = f"""
     You are a smart multi-label document classifier for financial queries.
@@ -22,5 +25,17 @@ def get_doc_types(query: str) -> list[str]:
 
     Return only relevant document types in lowercase and comma-separated.
     """
-    response = genai.GenerativeModel("models/gemini-2.5-flash").generate_content(prompt)
-    return [d.strip() for d in response.text.strip().split(",")]
+
+    model = genai.GenerativeModel("models/gemini-2.5-flash")
+
+    response = model.generate_content(prompt)
+    result = response.text.strip()
+
+    prompt_tokens = count_tokens(model, prompt)
+    response_tokens = count_tokens(model, result)
+
+    return [d.strip() for d in result.split(",")],{
+            "prompt_tokens": prompt_tokens,
+            "response_tokens": response_tokens,
+            "total_tokens": prompt_tokens + response_tokens
+        }

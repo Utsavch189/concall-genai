@@ -9,6 +9,9 @@ from calendar import month_abbr
 import markdown
 from datetime import datetime
 
+def count_tokens(model, text):
+    return model.count_tokens(text).total_tokens
+
 def convert_markdown_bold_to_html(text):
     return re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text)
 
@@ -44,7 +47,7 @@ vectorstore = Chroma(persist_directory="./chroma_db", embedding_function=GoogleG
 
 def ask_question(stock, query):
 
-    doc_types = get_doc_types(query)
+    doc_types,doc_type_tokens = get_doc_types(query)
     print("Suggested Doc Types : ",doc_types)
 
     filters = {
@@ -135,17 +138,36 @@ def ask_question(stock, query):
         <b>Answer:</b>
     """
 
-    response = genai.GenerativeModel("models/gemini-2.5-flash").generate_content(prompt)
+    model = genai.GenerativeModel("models/gemini-2.5-flash")
+
+    response = model.generate_content(prompt)
 
     content = response.text.strip()
     cleaned_output = convert_markdown_bold_to_html(content)
+
+    total_prompt_tokens = 0
+    total_response_tokens = 0
+
+    prompt_tokens = count_tokens(model, prompt)
+    total_prompt_tokens += prompt_tokens
+
+    response_tokens = count_tokens(model, response.text.strip())
+    total_response_tokens += response_tokens
+
+    total_tokens = doc_type_tokens["total_tokens"] + prompt_tokens + response_tokens
 
     return {
         "stock": stock,
         "question": query,
         "sources": sources,
         "document_count": len(sources),
-        "reply": markdown.markdown(cleaned_output)
+        "reply": markdown.markdown(cleaned_output),
+        "token_usage": {
+            "doc_type_tokens": doc_type_tokens,
+            "answer_prompt_tokens": prompt_tokens,
+            "answer_response_tokens": response_tokens,
+            "total_tokens": total_tokens
+        }
     }
 
 
