@@ -108,58 +108,6 @@ def ask_question(stock: str, query: str):
             "reply": "<b>No matching content found in the selected documents.</b>"
         }
 
-    # Step 5: Prompt Gemini for final answer
-#     prompt = f"""
-# You are a smart, structured, and highly reliable financial analyst assistant. 
-# Based strictly on the <b>provided context</b> from official company documents (e.g., annual reports, earnings call transcripts, announcements), generate a clear, concise, and well-organized answer to the user’s financial query.
-
-# ---
-
-# <b>Company:</b> {stock}  
-# <b>Question:</b> "{query}"
-
-# <b>Context:</b>  
-# {context}
-
-# ---
-
-# <b>Instructions:</b>
-
-# 1. <b>Use only the context</b>. Never assume or generate information not present in the context.
-
-# 2. If the question involves <b>YoY or multi-year</b> data:
-#    - Organize each metric year-wise:
-#      <br><b>FY2023:</b> ..., <br><b>FY2024:</b> ..., <br><b>FY2025:</b> ...
-#    - For growth percentages or financial metrics (Revenue, PAT, EBITDA, etc.), use compact bullet points or tabular formatting.
-#    - Mention missing years (e.g., "FY2024 data not available").
-
-# 3. If the question involves <b>trend or comparison</b>:
-#    - Identify increases/decreases and patterns across years.
-#    - Use phrases like <b>“grew by”</b>, <b>“declined to”</b>, <b>“remained stable”</b>, etc.
-
-# 4. If the question asks for <b>summaries, innovations, strategy, operations, or shareholders</b>:
-#    - Organize using headings like:
-#      <br><b>Business Model:</b> ...  
-#      <br><b>Strategic Initiatives:</b> ...  
-#      <br><b>Shareholding Pattern:</b> ...  
-#      <br><b>Product Launches:</b> ...
-
-# 5. Use <b>HTML formatting</b>:
-#    - <b>...</b> to highlight key figures and facts (e.g., <b>₹8,520 crore</b>, <b>14% YoY growth</b>)
-#    - <br> for line breaks
-#    - Bullet points for clarity
-
-# 6. If context contains no relevant data:
-#    - Respond: <b>No relevant data found in the provided documents.</b>
-
-# 7. <b>Conclusion:</b>  
-#    - End with a short summary of the insights or trend in 2–3 lines.
-
-# ---
-
-# <b>Answer:</b>
-# """
-
     prompt = f"""
         You are a smart, structured, and highly reliable financial analyst assistant. 
         Your primary goal is to provide clear, concise, and accurate answers to financial 
