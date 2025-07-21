@@ -242,12 +242,16 @@ def ask_question(stock: str, query: str):
         }
     }
 
-from flask import Flask,request,jsonify
+from flask import Flask,request,jsonify,render_template
 from flask_cors import CORS
 
 app = Flask(__name__)
 
 CORS(app,origins="*")
+
+@app.get("/")
+def chat_page():
+    return render_template("chat.html")
 
 @app.post('/chat')
 def chat():
@@ -266,4 +270,4 @@ if __name__ == "__main__":
     #     query="What has the company been doing to grow? Has the company created any new revenue streams over the last 3 years? Has it launched any new products or innovations?"
     # )
     # print(res)
-    app.run(debug=True)
+    app.run(debug=True,host="0.0.0.0")

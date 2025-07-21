@@ -33,7 +33,7 @@
         const formData = new FormData();
         formData.append("audio", audioBlob, "speech.webm");
 
-        const response = await fetch("/transcribe", {
+        const response = await fetch("/translate", {
           method: "POST",
           body: formData,
         });
