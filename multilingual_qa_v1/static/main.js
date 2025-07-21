@@ -104,7 +104,7 @@ class ChatBox {
       this.stopRecording();
     };
 
-    this.mediaRecorder.start(100); // Collect data every 100ms
+    this.mediaRecorder.start(50); // Collect data every 100ms
     this.startRecording();
   }
 
