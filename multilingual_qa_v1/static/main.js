@@ -36,7 +36,10 @@ class ChatBox {
           body: formData,
         });
         const message = await response.json();
-        this.sendMessage(message?.text);
+        const isConfirm = confirm(`Translate : ${message?.text}`)
+        if (isConfirm===true){
+            this.sendMessage(message?.text);
+        }
     } catch (error) {
         console.log(error);
         this.addMessage("Translate problem!", 'user');
