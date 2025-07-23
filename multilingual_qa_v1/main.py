@@ -11,6 +11,7 @@ from utils.intent_classifier import get_relevant_sources
 import google.generativeai as genai
 import re
 import markdown
+from utils.text_translation import translate_text_v1,translate_text_v2
 
 load_dotenv()
 
@@ -99,6 +100,7 @@ def ask_question(stock: str, query: str):
     for f in filters:
         # Chroma allows only one filter at a time in similarity_search
         result = vectorstore.similarity_search(query, k=5, filter=f)
+        print(result)
         if result:
             for doc in result:
                 context += doc.page_content + "\n\n"
@@ -240,7 +242,7 @@ def ask_question(stock: str, query: str):
         "sources": used_sources,
         "document_count": len(used_sources),
         "reply": markdown.markdown(cleaned_html),
-        "token_usage": {
+        "token_usage_for_rag": {
             "doc_type_tokens": doc_type_tokens,
             "answer_prompt_tokens": prompt_tokens,
             "answer_response_tokens": response_tokens,
@@ -268,13 +270,19 @@ def transcribe_audio():
     print(translate)
     return jsonify({"text":translate.text})
 
-@app.post('/chat')
-def chat():
+@app.post('/chat/<string:lang>')
+def chat(lang:str):
     query = request.json.get('query')
     res = ask_question(
         stock='TCS',
         query=query
     )
+
+    if lang!='en':
+        translation = translate_text_v1(res['reply'],lang)
+        res['reply'] = translation['translated_text']
+        res['token_usage_for_translation'] = translation['token_usage']
+
     return jsonify(res)
 
 

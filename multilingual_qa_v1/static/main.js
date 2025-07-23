@@ -5,6 +5,7 @@ class ChatBox {
     this.stream = null;
     this.isRecording = false;
     this.isTyping = false;
+    this.selectedLang = 'en';
     
     this.elements = {
       chatMessages: document.getElementById('chatMessages'),
@@ -15,12 +16,17 @@ class ChatBox {
       voiceIndicator: document.getElementById('voiceIndicator'),
       micIcon: document.getElementById('micIcon'),
       stopIcon: document.getElementById('stopIcon'),
-      statusMessage: document.getElementById('statusMessage')
+      statusMessage: document.getElementById('statusMessage'),
+      langSelectBox :  document.getElementById('lang-select')
     };
 
     this.initializeAudioRecording();
     this.bindEvents();
     this.showStatus('Ready to chat! Try asking me something.', 'success');
+  }
+
+  langSelect(e){
+    console.log(e)
   }
 
   async sendAudioMessage (audioBlob){
@@ -149,6 +155,10 @@ class ChatBox {
     this.elements.messageInput.addEventListener('blur', () => {
       this.elements.messageInput.parentElement.classList.remove('ring-2', 'ring-blue-400');
     });
+
+    this.elements.langSelectBox.addEventListener("change",(e)=>{
+      this.selectedLang = e.target.value;
+    })
   }
 
   startRecording() {
@@ -248,7 +258,7 @@ class ChatBox {
 
   async generateAIResponse(userMessage) {
     try {
-        const response = await fetch('/chat', {
+        const response = await fetch(`/chat/${this.selectedLang}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: userMessage }),

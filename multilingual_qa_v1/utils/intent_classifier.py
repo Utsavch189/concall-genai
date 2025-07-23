@@ -40,7 +40,7 @@ def get_relevant_sources(query: str, all_metadata: list[dict]) -> list[str]:
     You are a smart assistant trained to select the best documents to answer a financial query about a company.
 
     <b>Instructions:</b>
-    - Choose the smallest and most relevant set of up to 5 documents.
+    - Choose the smallest and most relevant set of up to 10 documents.
     - Prioritize the most recent relevant reports from the types: <b>annual_report</b>, <b>concall</b>, <b>announcement</b>.
     - Use annual reports for performance, revenue, cash flow, capex, etc.
     - Use concalls for management commentary, strategy, guidance, hiring, outlook.
@@ -65,6 +65,9 @@ def get_relevant_sources(query: str, all_metadata: list[dict]) -> list[str]:
     response = model.generate_content(prompt)
     result = response.text.strip()
 
+    prompt_tokens = count_tokens(model, prompt)
+    response_tokens = count_tokens(model, result)
+
     # If Gemini says "FALLBACK", apply fallback logic
     if "FALLBACK" in result.upper():
         # Step 1: Group by type and pick latest from each
@@ -83,10 +86,12 @@ def get_relevant_sources(query: str, all_metadata: list[dict]) -> list[str]:
                 fallback_docs.append(
                     f"{t.replace('_', ' ').title()} - {docs[0]['source']}"
                 )
-        return fallback_docs
+        return fallback_docs,{
+            "prompt_tokens": prompt_tokens,
+            "response_tokens": response_tokens,
+            "total_tokens": prompt_tokens + response_tokens
+        }
     
-    prompt_tokens = count_tokens(model, prompt)
-    response_tokens = count_tokens(model, result)
 
     # Otherwise, parse Gemini's returned document labels
     return [doc.strip() for doc in result.split(",") if doc.strip()],{

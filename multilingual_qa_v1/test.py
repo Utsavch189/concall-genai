@@ -12,4 +12,5 @@ with open("audio.ogg", "rb") as audio_file:
         file=audio_file
     )
 
-print(translate)
+print(translate.text)
+print(translate.language)
