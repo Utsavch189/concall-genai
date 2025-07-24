@@ -11,24 +11,6 @@ model = genai.GenerativeModel("models/gemini-2.5-flash")
 
 def get_relevant_sources(query: str, all_metadata: list[dict]) -> list[str]:
 
-    # def parse_filename(file_name):
-    #     from calendar import month_abbr
-    #     import re
-
-    #     base_name = file_name.replace(".pdf", "")
-    #     match_month = re.search(r"M(\d{1,2})Y(\d{4})D(\d{1,2})", base_name, re.IGNORECASE)
-    #     if match_month:
-    #         month_num, year, day = match_month.groups()
-    #         try:
-    #             return f"{month_abbr[int(month_num)]} {int(day)}, {year}"
-    #         except IndexError:
-    #             pass
-    #     match_quarter = re.search(r"Q([1-4])[_\- ]?(\d{4})", base_name, re.IGNORECASE)
-    #     if match_quarter:
-    #         quarter, year = match_quarter.groups()
-    #         return f"Q{quarter} FY {year}"
-    #     return base_name
-
     doc_labels = [
         f"{m['type'].replace('_', ' ').title()} - {m['source']}"
         for m in all_metadata
@@ -39,15 +21,34 @@ def get_relevant_sources(query: str, all_metadata: list[dict]) -> list[str]:
     prompt = f"""
     You are a smart assistant trained to select the best documents to answer a financial query about a company.
 
-    <b>Instructions:</b>
-    - Choose the smallest and most relevant set of up to 10 documents.
-    - Prioritize the most recent relevant reports from the types: <b>annual_report</b>, <b>concall</b>, <b>announcement</b>.
-    - Use annual reports for performance, revenue, cash flow, capex, etc.
-    - Use concalls for management commentary, strategy, guidance, hiring, outlook.
-    - Use announcements for board actions, dividends, acquisitions, leadership changes.
-    - Prefer the most recent years, e.g., FY{current_year}, FY{current_year - 1}, FY{current_year - 2}.
-    - Do NOT repeat documents of the same exact date.
+    <b>Available Document Types and Filename Formats:</b><br>
+    <ul>
+      <li><b>Annual Report:</b> Covers financial performance, revenue, net profit, balance sheet, etc.<br>
+          Format example: <code>AnnualReport2023</code> (Year at the end).</li>
+      <li><b>Concall Report:</b> Management commentary, earnings calls, outlook.<br>
+          Format example: <code>Q4_2025</code> (Quarter + Year).</li>
+      <li><b>Announcement:</b> Board decisions, dividends, buybacks, leadership changes.<br>
+          Format example: <code>M&lt;month&gt;Y&lt;year&gt;D&lt;day&gt;</code>, e.g., <code>M6Y2025D3</code> means <b>3rd June 2025</b>.</li>
+    </ul>
 
+    <b>Instructions:</b><br>
+    - Select the smallest, most focused set of documents, up to a maximum of <b>10</b>, to precisely answer the query.<br>
+
+    - Prioritize only the most recent and highly relevant reports of the following types: <b>annual_report</b>, <b>concall</b>, and <b>announcement</b>.<br>
+
+    - Use <b>annual reports</b> exclusively for detailed financial metrics such as performance, revenue, cash flow, capital expenditures (capex), and balance sheet items.<br>
+ 
+    - Use <b>concall transcripts</b> strictly for management commentary, strategic initiatives, forward guidance, hiring updates, and business outlook.<br>
+ 
+    - Use <b>announcements</b> solely for board decisions, dividends, acquisitions, leadership changes, buybacks, and other corporate actions.<br>
+ 
+    - Focus on documents from the most recent fiscal years, specifically: <b>FY{current_year}</b>, <b>FY{current_year - 1}</b>, and <b>FY{current_year - 2}</b>.<br>
+ 
+    - Ensure that documents referring to the same exact reporting date or period are not duplicated; only one document per unique date/period should be included.<br>
+ 
+    - Avoid redundancy to maintain concise, accurate, and non-overlapping context for the query.
+
+    <br>
     <b>Query:</b>  
     "{query}"
 
@@ -93,8 +94,9 @@ def get_relevant_sources(query: str, all_metadata: list[dict]) -> list[str]:
         }
     
 
-    # Otherwise, parse Gemini's returned document labels
-    return [doc.strip() for doc in result.split(",") if doc.strip()],{
+    reports = [doc.strip() for doc in result.split(",") if doc.strip()]
+    reports = list(set(reports))
+    return reports,{
             "prompt_tokens": prompt_tokens,
             "response_tokens": response_tokens,
             "total_tokens": prompt_tokens + response_tokens

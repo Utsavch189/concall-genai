@@ -11,7 +11,8 @@ from utils.intent_classifier import get_relevant_sources
 import google.generativeai as genai
 import re
 import markdown
-from utils.text_translation import translate_text_v1,translate_text_v2
+from utils.text_translation import translate_text_v1,translate_text_v2,language_codes
+from utils.model_costs import cost_gemini_25_flash,cost_gpt4o
 
 load_dotenv()
 
@@ -106,7 +107,7 @@ def ask_question(stock: str, query: str):
                 context += doc.page_content + "\n\n"
                 label = f"{doc.metadata['type'].replace('_', ' ').title()} - {parse_filename(doc.metadata['source'])}"
                 used_sources.append(label)
-    
+        
     if not context:
         return {
             "stock": stock,
@@ -117,107 +118,85 @@ def ask_question(stock: str, query: str):
         }
 
     prompt = f"""
-        You are a smart, structured, and highly reliable financial analyst assistant. 
-        Your primary goal is to provide clear, concise, and accurate answers to financial 
-        queries based strictly on the provided context from official company documents (e.g., annual reports, earnings call transcripts, announcements).
+        You are a highly intelligent, detail-oriented, and trustworthy financial analyst assistant.  
+        Your sole responsibility is to generate **clear**, **concise**, and **data-driven** responses strictly using the <b>verified context</b> extracted from official company documents (e.g., Annual Reports, Earnings Calls, Regulatory Filings).
 
-        Company: {stock}
+        <hr>
+        <b>🧾 Company:</b> {stock}<br>
+        <b>📌 Query:</b> "{query}"<br><br>
+        <b>📚 Context:</b><br><br>
+        {context}<br><br>
 
-        Question: "{query}"
+        <hr>
+        <h3>🛠️ Answer Construction Guidelines:</h3>
 
-        Context:
+        <b>1. Adherence to Context:</b><br>
+        <ul>
+          <li>Use only the information provided in the context above. <b>Do not infer, assume, or fabricate</b> any information.</li>
+          <li>If the context does not contain relevant data, respond exactly with: <i>No relevant data found in the provided documents.</i></li>
+        </ul><br>
 
-        {context}
+        <b>2. Formatting & Visual Clarity:</b><br>
+        <ul>
+          <li>Use HTML formatting to ensure structured and readable output.</li>
+          <li>Highlight important metrics using <b>bold</b> (e.g., <b>₹8,520 crore</b>, <b>14% YoY growth</b>, <b>Net Profit</b>).</li>
+          <li>Use line breaks (&lt;br&gt;) between facts and bullet points (&lt;ul&gt;&lt;li&gt;...&lt;/li&gt;&lt;/ul&gt;) or tables for organized data.</li>
+          <li>Always include appropriate units and currency (e.g., <b>₹ crore</b>, <b>million USD</b>, <b>%</b>).</li>
+        </ul><br>
 
-        Instructions for Generating the Answer:
+        <b>3. Handling Specific Query Types:</b><br>
 
-        Adherence to Context:
+        <ul>
+          <li><b>A. Multi-Year Financial Metrics (e.g., Revenue, PAT, EBITDA):</b>
+            <ul>
+              <li>Present each year’s data clearly: <br>FY2022: ₹X crore<br>FY2023: ₹Y crore<br>FY2024: ₹Z crore</li>
+              <li>If a specific year is missing, clearly state: "FY20XX data not available."</li>
+              <li>Use <b>tables</b> when showing year-wise comparisons for 2+ metrics.</li>
+            </ul>
+          </li><br>
 
-        Use only the provided context. Never infer, assume, or generate information not explicitly present.
+          <li><b>B. Trend or Comparative Analysis (e.g., margins, cost ratios, segment sales):</b>
+            <ul>
+              <li>State the direction and magnitude of change with phrases like:
+                <ul>
+                  <li><b>"increased from ₹X crore to ₹Y crore"</b></li>
+                  <li><b>"declined by 12% YoY"</b></li>
+                  <li><b>"remained steady at ₹Z crore"</b></li>
+                </ul>
+              </li>
+              <li>Back every trend statement with supporting data from the context.</li>
+            </ul>
+          </li><br>
 
-        If the context contains no relevant data for the query, respond directly: No relevant data found in the provided documents.
+          <li><b>C. Strategic, Operational, or Shareholder Insights:</b>
+            <ul>
+              <li>Use appropriate section headers such as:<br>
+                <ul>
+                  <li><h3>📊 Business Model:</h3></li>
+                  <li><h3>🚀 Strategic Initiatives:</h3></li>
+                  <li><h3>🏭 Operational Performance:</h3></li>
+                  <li><h3>📈 Growth Drivers / Risks:</h3></li>
+                </ul>
+              </li>
+              <li>Deliver well-structured factual summaries under each section, clearly based on the provided context.</li>
+            </ul>
+          </li>
+        </ul><br>
 
-        Formatting and Presentation:
+        <b>4. Tone & Language:</b><br>
+        <ul>
+          <li>Maintain a formal, objective, and analytical tone.</li>
+          <li>Use precise, non-speculative language. Avoid filler words and unnecessary jargon.</li>
+          <li>Ensure every sentence directly reflects data or insights from the context.</li>
+        </ul><br>
 
-        Use HTML formatting for enhanced readability.
+        <b>5. Conclusion:</b><br>
+        <ul>
+          <li>End with a concise 2–3 line summary highlighting the most significant finding(s) relevant to the query.</li>
+        </ul><br>
 
-        Highlight key figures, financial metrics, and important facts using <b>...</b> (e.g., ₹8,520 crore, 14% YoY growth, Net Profit After Tax).
-
-        Use <br> for line breaks within paragraphs or for spacing out bullet points.
-
-        Employ bullet points (<ul><li>...</li></ul>) or tabular formatting (<table>...</table>) for lists, year-wise data, or comparisons to ensure clarity and conciseness.
-
-        Always include units and currency where applicable (e.g., ₹ crore, %, million USD).
-
-        Handling Specific Query Types:
-
-        A. Year-over-Year (YoY) or Multi-Year Data (e.g., "What was the revenue over the past three years?"):
-
-        Organize each metric clearly year-wise.
-
-        Example structure:
-
-        FY2023: [Metric Value]
-
-        FY2024: [Metric Value]
-
-        FY2025: [Metric Value]
-
-        If data for a specific year is missing, state it explicitly (e.g., "FY2024 data not available").
-
-        For growth percentages or financial metrics (Revenue, PAT, EBITDA, etc.), use compact bullet points or a clear table.
-
-        B. Trend or Comparison Queries (e.g., "Describe the trend in gross profit margins," "Compare sales across segments"):
-
-        Clearly identify increases, decreases, or stable patterns across periods or between categories.
-
-        Use precise phrases such as:
-
-        "grew by [X]%"
-
-        "declined to [Value]"
-
-        "increased from [Value A] to [Value B]"
-
-        "remained stable at [Value]"
-
-        "outperformed/underperformed"
-
-        Quantify trends with specific numbers and percentages from the context.
-
-        C. Summaries, Innovations, Strategy, Operations, or Shareholder Queries (e.g., "Summarize the business model," "What are the key strategic initiatives?"):
-
-        Organize the answer using clear HTML headings (<h3>...</h3>) or bolded labels.
-
-        Examples of headings/labels:
-
-        Business Model: ...
-
-        Strategic Initiatives: ...
-
-        Shareholding Pattern: ...
-
-        Product Launches: ...
-
-        Operational Highlights: ...
-
-        Provide a concise summary of the relevant information under each heading.
-
-        Language and Tone:
-
-        Maintain a professional, objective, and factual tone.
-
-        Use clear, straightforward language. Avoid jargon where simpler terms suffice.
-
-        Be direct and avoid conversational fillers or overly flowery language.
-
-        Prioritize clarity and precision in all statements.
-
-        Conclusion:
-
-        Conclude the answer with a brief, insightful summary (2-3 lines) of the key findings, overall trend, or the most significant piece of information derived from the provided context relevant to the query.
-
-        Answer:
+        <hr>
+        <b>🧠 Final Answer:</b><br>
         """
 
     model = genai.GenerativeModel("models/gemini-2.5-flash")
@@ -235,6 +214,8 @@ def ask_question(stock: str, query: str):
     total_response_tokens += response_tokens
 
     total_tokens = doc_type_tokens["total_tokens"] + prompt_tokens + response_tokens
+
+    used_sources = list(set(used_sources))
 
     return {
         "stock": stock,
@@ -273,15 +254,32 @@ def transcribe_audio():
 @app.post('/chat/<string:lang>')
 def chat(lang:str):
     query = request.json.get('query')
+    
+    translate = translate_text_v2(query)
+    trans_txt = translate.get('translated_text')
+    print(translate)
+    
     res = ask_question(
         stock='TCS',
-        query=query
+        query=trans_txt
     )
+
+    inp_tokens = res["token_usage_for_rag"]["answer_prompt_tokens"]+res["token_usage_for_rag"]["doc_type_tokens"]["prompt_tokens"]
+    out_tokens = res["token_usage_for_rag"]["answer_response_tokens"]+res["token_usage_for_rag"]["doc_type_tokens"]["response_tokens"]
 
     if lang!='en':
         translation = translate_text_v1(res['reply'],lang)
         res['reply'] = translation['translated_text']
         res['token_usage_for_translation'] = translation['token_usage']
+        res["reply"] = translation["translated_text"]
+        inp_tokens += translation["token_usage"]["input_token"]
+        out_tokens += translation["token_usage"]["output_token"]
+
+    res["rag_price_usd"] = cost_gemini_25_flash(
+        inp_tokens,
+        out_tokens
+        )
+    res["translate_price_usd"] = cost_gpt4o(translate["token_usage"]["input_token"],translate["token_usage"]["output_token"])
 
     return jsonify(res)
 
