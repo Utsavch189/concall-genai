@@ -1,8 +1,9 @@
 import os
 import json
-from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 import re
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.schema import Document
+from docling.document_converter import DocumentConverter
 
 TRACK_FILE = "ingested_files.json"
 TYPE_MAP = {"annual": "annual_report", "announcements": "announcement", "concall": "concall"}
@@ -48,6 +49,7 @@ def load_new_pdfs(base_dir="./reports"):
     ingested = load_ingested()
     new_chunks = []
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    converter = DocumentConverter()
 
     for stock in os.listdir(base_dir):
         stock_path = os.path.join(base_dir, stock)
@@ -70,13 +72,17 @@ def load_new_pdfs(base_dir="./reports"):
 
                 file_path = os.path.join(folder_path, file)
                 try:
-                    loader = PyPDFLoader(file_path)
-                    pages = loader.load()
+                    # Use Docling to parse the PDF into a multimodal document
+                    result = converter.convert(file_path)
+                    markdown_text = result.document.export_to_markdown()
                 except Exception as e:
-                    print(f"❌ Failed to load {file_path}: {e}")
+                    print(f"❌ Failed to parse {file_path} with Docling: {e}")
                     continue
 
-                chunks = splitter.split_documents(pages)
+                # Wrap the full markdown text as a single Document for chunking
+                doc = Document(page_content=markdown_text, metadata={"source": file_path})
+
+                chunks = splitter.split_documents([doc])
                 chunks = clean_chunks(chunks)
 
                 if not chunks:
@@ -85,7 +91,7 @@ def load_new_pdfs(base_dir="./reports"):
 
                 print(f"✅ {len(chunks)} chunks from {stock} → {doc_type} → {file}")
 
-                for i,chunk in enumerate(chunks):
+                for i, chunk in enumerate(chunks):
                     chunk.metadata = {
                         "stock": stock,
                         "type": doc_type,

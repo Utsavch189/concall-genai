@@ -105,6 +105,7 @@ def ask_question(stock: str, query: str):
         if result:
             for doc in result:
                 context += doc.page_content + "\n\n"
+                print("PAGE ------------> ",doc.metadata.get('page',''))
                 label = f"{doc.metadata['type'].replace('_', ' ').title()} - {parse_filename(doc.metadata['source'])}"
                 used_sources.append(label)
         

@@ -174,13 +174,20 @@ def translate_text_v1(text:str, target_language="en"):
     target_language = language_codes[target_language]
 
     prompt = f"""
-        System: You are a professional translator. Detect the source language of the text. Then translate it into {target_language}, preserving:
-        - The original sentence structure and formatting.
-        - Technical/financial terms (e.g., EBITDA, P/E, P/B, Gross Margin) in **parentheses** immediately after their translation.
+        System: You are a professional translator. Your task is to:
+        - Detect the source language of the given text.
+        - Translate the text into {target_language} with some desi {target_language} flavour just like we use to say generally, preserving:
+          - The original sentence structure and formatting.
+          - Technical and financial terms (e.g., EBITDA, P/E, P/B, Gross Margin) by adding them in **parentheses** immediately after their translated equivalent.
+        
         Examples:
           English: "The P/E ratio indicates price over earnings."
           -> "[Translated text] (P/E)"
-        Only return the translated text—no explanations or metadata.
+        
+        Return only the translated text. Do not include any explanations, notes, or metadata.
+        
+        If the source text is already in English and the target language is also English, skip translation and return the original text as is.
+        
         Text to translate:
         \"\"\"
         {text.strip()}
